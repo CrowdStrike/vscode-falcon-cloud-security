@@ -1,0 +1,208 @@
+{
+  "name": "fcs-vscode",
+  "displayName": "Falcon Cloud Security",
+  "description": "Falcon Cloud Security insights directly in your IDE",
+  "version": "0.3.0",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "icon": "assets/falcon-logo.png",
+  "galleryBanner": {
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CrowdStrike/vscode-falcon-cloud-security.git"
+  },
+  "homepage": "https://github.com/CrowdStrike/vscode-falcon-cloud-security/blob/main/README.md",
+  "publisher": "CrowdStrike",
+  "markdown": "github",
+  "preview": true,
+  "engines": {
+    "vscode": "^1.82.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "infrastructure",
+    "terraform",
+    "cloudformation",
+    "kubernetes",
+    "iac"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "fcs.scanFile",
+        "title": "FCS: Scan Current File",
+        "icon": "$(search)"
+      },
+      {
+        "command": "fcs.scanWorkspace",
+        "title": "FCS: Scan Workspace",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "fcs.checkCliStatus",
+        "title": "FCS: Check CLI Status",
+        "icon": "$(info)"
+      },
+      {
+        "command": "fcs.installCli",
+        "title": "FCS: Download CLI",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "fcs.configure",
+        "title": "FCS: Show Configuration Instructions",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "fcs.clearDiagnostics",
+        "title": "FCS: Clear All Diagnostics",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "fcs.showHelp",
+        "title": "FCS: Help & Documentation",
+        "icon": "$(question)"
+      },
+      {
+        "command": "fcs.openSettings",
+        "title": "FCS: Open Settings",
+        "icon": "$(settings)"
+      }
+    ],
+    "configuration": {
+      "title": "CrowdStrike FCS Linter",
+      "properties": {
+        "fcs.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable FCS security linting"
+        },
+        "fcs.scanOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan files on save"
+        },
+        "fcs.scanPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Custom paths to scan (relative to workspace root). Leave empty to scan entire workspace."
+        },
+        "fcs.filePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "*.tf",
+            "*.tfvars",
+            "*.yaml",
+            "*.yml",
+            "*.json",
+            "Dockerfile"
+          ],
+          "description": "File patterns to scan for security issues"
+        },
+        "fcs.platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "Ansible",
+              "AzureResourceManager",
+              "CloudFormation",
+              "Crossplane",
+              "DockerCompose",
+              "Dockerfile",
+              "GoogleDeploymentManager",
+              "Kubernetes",
+              "OpenAPI",
+              "Pulumi",
+              "ServerlessFW",
+              "Terraform"
+            ]
+          },
+          "default": [],
+          "description": "Restrict scans to specific IaC platforms. Leave empty to scan all platforms. Useful in mixed-platform repositories where multiple platforms share the same file format (e.g. Kubernetes and Ansible both use .yaml)."
+        },
+        "fcs.severity": {
+          "type": "string",
+          "enum": [
+            "all",
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "informational"
+          ],
+          "default": "all",
+          "description": "Minimum severity level to show"
+        },
+        "fcs.scanTimeout": {
+          "type": "integer",
+          "default": 300,
+          "minimum": 1,
+          "description": "Timeout for CLI scans in seconds. Increase this for large workspaces or slow machines. Default matches the CLI default of 300 seconds."
+        },
+        "fcs.uploadResults": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Upload scan results to Falcon Cloud after each scan. Requires appropriate API scopes. **Note:** This setting is not yet fully supported — leave disabled."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.js",
+    "check-types": "tsc --noEmit",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "pretest": "npm run compile && tsc --project tsconfig.json",
+    "test": "vscode-test",
+    "package": "npm run check-types && node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^18.19.0",
+    "@types/semver": "^7.5.0",
+    "@types/sinon": "^21.0.0",
+    "@types/tar": "^6.1.5",
+    "@types/vscode": "^1.82.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "dotenv": "^17.2.3",
+    "esbuild": "^0.25.0",
+    "glob": "^11.0.3",
+    "js-yaml": "^4.2.0",
+    "mocha": "^11.7.6",
+    "npm-run-all": "^4.1.5",
+    "serialize-javascript": "^7.0.5",
+    "shell-quote": "^1.9.0",
+    "sinon": "^21.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "axios": "^1.16.0",
+    "semver": "7.7.3",
+    "tar": "^7.5.16"
+  }
+}
