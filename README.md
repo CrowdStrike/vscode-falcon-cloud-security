@@ -159,7 +159,7 @@ To download the FCS CLI, you need a CrowdStrike API client and secret. These are
 
 ## Support
 
-Check [existing issues]([TODO: GitHub issues URL]) before opening a new issue. If you need to open a new issue, include your extension version, VS Code version, and OS.
+Check [existing issues](https://github.com/CrowdStrike/vscode-falcon-cloud-security/issues) before opening a new issue. If you need to open a new issue, include your extension version, VS Code version, and OS.
 
 ## License
 
