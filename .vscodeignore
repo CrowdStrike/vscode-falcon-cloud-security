@@ -1,0 +1,32 @@
+.vscode/**
+.vscode-test/**
+src/**
+out/**
+node_modules
+tsconfig.json
+esbuild.js
+.gitignore
+.yarnrc
+vsc-extension-quickstart.md
+**/tsconfig.json
+**/.eslintrc.json
+**/*.map
+**/*.ts
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.claude
+CLAUDE.md
+test-files/
+
+# Build artifacts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.vsix
+
+# OS generated files
+.DS_Store
+Thumbs.db
