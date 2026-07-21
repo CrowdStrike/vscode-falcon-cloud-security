@@ -18,7 +18,7 @@ VS Code extension for scanning Infrastructure as Code (IaC) files with the Crowd
 ## Installation
 
 1. Install the plugin from the VS Code marketplace:
-   1. Go to the [VS Code marketplace]([TODO: URL]).
+   1. Go to the [VS Code marketplace](https://marketplace.visualstudio.com/items?itemName=CRWD.crowdstrike-fcs-cli-plugin).
    1. Search for **Falcon Cloud Security**.
    1. Click **Install**.
 1. Install the FCS CLI with one of the two options below. 
