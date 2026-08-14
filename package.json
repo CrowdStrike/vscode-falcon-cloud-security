@@ -1,12 +1,13 @@
 {
-  "name": "fcs-vscode",
-  "displayName": "Falcon Cloud Security",
+  "name": "crowdstrike-fcs-cli-plugin",
+  "displayName": "CrowdStrike FCS CLI Plugin",
   "description": "Falcon Cloud Security insights directly in your IDE",
-  "version": "3.2.0",
+  "version": "4.1.2",
   "license": "SEE LICENSE IN LICENSE.txt",
   "icon": "assets/falcon-logo.png",
   "galleryBanner": {
-    "theme": "dark"
+    "color": "#FFFFFF",
+    "theme": "light"
   },
   "pricing": "Free",
   "repository": {
@@ -14,7 +15,7 @@
     "url": "https://github.com/CrowdStrike/vscode-falcon-cloud-security.git"
   },
   "homepage": "https://github.com/CrowdStrike/vscode-falcon-cloud-security/blob/main/README.md",
-  "publisher": "CrowdStrike",
+  "publisher": "CRWD",
   "markdown": "github",
   "preview": true,
   "engines": {
@@ -188,6 +189,7 @@
     "@typescript-eslint/parser": "^8.44.1",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.1",
     "dotenv": "^17.2.3",
     "esbuild": "^0.28.1",
     "glob": "^11.0.3",

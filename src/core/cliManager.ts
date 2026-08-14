@@ -63,6 +63,7 @@ export class FcsCliManager {
     private static readonly LAST_KNOWN_VERSION_KEY = 'fcs.lastKnownCliVersion';
 
     private sessionProxyUrl: string | null = null;
+    private aboveMaxWarnedThisSession: boolean = false;
 
     constructor(private context: vscode.ExtensionContext) {}
 
@@ -461,7 +462,7 @@ export class FcsCliManager {
         let compatNote = '';
         if (status.isCompatible === false) {
             if (status.version && semver.gt(status.version, CLI_VERSION.MAXIMUM)) {
-                compatNote = ` ⚠️ Version ${status.version} is above the maximum validated version (${CLI_VERSION.MAXIMUM}). Consider updating the extension.`;
+                compatNote = ` ⚠️ Version ${status.version} compatibility with this extension has not been validated. Consider updating the extension.`;
             } else {
                 compatNote = ` ⚠️ Version ${status.version} is below the minimum required version (${CLI_VERSION.MINIMUM}).`;
             }
@@ -531,13 +532,20 @@ export class FcsCliManager {
         const cliStatus = await this.checkCliStatus();
         if (cliStatus.isInstalled && cliStatus.isCompatible === false) {
             const isAboveMax = cliStatus.version && semver.gt(cliStatus.version, CLI_VERSION.MAXIMUM);
-            throw new CliError(
-                isAboveMax
-                    ? `FCS CLI v${cliStatus.version} is above the maximum validated version (${CLI_VERSION.MAXIMUM}). ` +
-                      `Scans may not work correctly. Update the extension to support this CLI version.`
-                    : `FCS CLI v${cliStatus.version} is below the minimum required version (${CLI_VERSION.MINIMUM}). ` +
-                      `Run "FCS: Download CLI" to install the latest version, or upgrade your system installation.`
-            );
+            if (isAboveMax) {
+                if (!this.aboveMaxWarnedThisSession) {
+                    this.aboveMaxWarnedThisSession = true;
+                    vscode.window.showWarningMessage(
+                        `FCS CLI v${cliStatus.version} compatibility with this extension has not been validated. Consider updating the extension.`
+                    );
+                }
+                // continue — allow scan to proceed
+            } else {
+                throw new CliError(
+                    `FCS CLI v${cliStatus.version} is below the minimum required version (${CLI_VERSION.MINIMUM}). ` +
+                    `Run "FCS: Download CLI" to install the latest version, or upgrade your system installation.`
+                );
+            }
         }
 
         // Create secure temporary directory for results

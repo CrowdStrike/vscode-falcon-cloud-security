@@ -4,5 +4,6 @@ const { defineConfig } = require('@vscode/test-cli');
 module.exports = defineConfig({
   files: 'out/test/**/*.test.js',
   workspaceFolder: '.',
-  extensionDevelopmentPath: '.'
+  extensionDevelopmentPath: '.',
+  version: '1.120.0'
 });
