@@ -77,13 +77,12 @@ suite('FcsCliManager Behavior Tests', () => {
     test('isVersionCompatible: returns true for version within range', () => {
         assert.strictEqual((manager as any).isVersionCompatible('3.0.0'), true);
         assert.strictEqual((manager as any).isVersionCompatible('3.1.0'), true);
-        assert.strictEqual((manager as any).isVersionCompatible('3.2.0'), true);
+        assert.strictEqual((manager as any).isVersionCompatible('4.0.0'), true);
+        assert.strictEqual((manager as any).isVersionCompatible('4.0.1'), true);
     });
 
     test('isVersionCompatible: returns false for version above maximum', () => {
-        assert.strictEqual((manager as any).isVersionCompatible('4.0.0'), false);
-        assert.strictEqual((manager as any).isVersionCompatible('3.3.0'), false);
-        assert.strictEqual((manager as any).isVersionCompatible('3.2.1'), false);
+        assert.strictEqual((manager as any).isVersionCompatible('999.0.0'), false);
     });
 
     test('isVersionCompatible: returns false for version < minimum', () => {
@@ -400,6 +399,22 @@ suite('FcsCliManager Behavior Tests', () => {
             () => manager.scanFiles(['/workspace/main.tf']),
             /FCS CLI v2\.0\.2 is below the minimum required version/
         );
+    });
+
+    test('scanFiles: proceeds without version error when CLI version is above maximum', async () => {
+        sandbox.stub(vscode.workspace, 'getConfiguration').returns(makeVsCodeConfig());
+        (manager as any).getAvailableCliPath = async () => process.execPath;
+        (manager as any).checkCliStatus = async () => ({ isInstalled: true, version: '999.0.0', isCompatible: false });
+        // Should NOT throw a version error — may throw a different error (e.g. no report file)
+        // but must not throw the "above maximum" / version-related error
+        try {
+            await manager.scanFiles(['/workspace/main.tf']);
+        } catch (e: any) {
+            assert.ok(
+                !e.message?.includes('above the maximum') && !e.message?.includes('compatibility'),
+                `Expected no version compatibility error, but got: ${e.message}`
+            );
+        }
     });
 
     // --- checkCliStatus decision tree ---

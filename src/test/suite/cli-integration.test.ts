@@ -56,7 +56,7 @@ suite('CLI Download Interface Fix Tests', () => {
         // The extension should activate even if CLI is not available
         // This tests our race condition fix
 
-        const extension = vscode.extensions.getExtension('crowdstrike.fcs-vscode');
+        const extension = vscode.extensions.getExtension('CRWD.crowdstrike-fcs-cli-plugin');
         assert.ok(extension, 'Extension should be loaded');
 
         if (extension && !extension.isActive) {

@@ -974,7 +974,7 @@ sudo chmod +x /usr/local/bin/fcs</code></pre>
             <p>Common scenarios:</p>
             <ul>
                 <li><strong>CLI below minimum version:</strong> Download a compatible version using "FCS: Download CLI"</li>
-                <li><strong>CLI above maximum validated version:</strong> Update the extension to get support for the newer CLI</li>
+                <li><strong>CLI above maximum validated version:</strong> Version compatibility has not been validated. Consider updating the extension.</li>
                 <li><strong>Not on latest compatible:</strong> FCS: Check CLI Status will show the latest compatible version — use "FCS: Download CLI" to update</li>
             </ul>
 
