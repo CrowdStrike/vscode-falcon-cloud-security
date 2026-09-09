@@ -62,5 +62,5 @@ export const CLI_VERSION = {
     MINIMUM: '3.0.0',
 
     /** Maximum FCS CLI version validated to work with this extension */
-    MAXIMUM: '4.1.2'
+    MAXIMUM: '4.2.0'
 } as const;
