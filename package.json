@@ -2,7 +2,7 @@
   "name": "crowdstrike-fcs-cli-plugin",
   "displayName": "CrowdStrike FCS CLI Plugin",
   "description": "Falcon Cloud Security insights directly in your IDE",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "license": "SEE LICENSE IN LICENSE.txt",
   "icon": "assets/falcon-logo.png",
   "galleryBanner": {
