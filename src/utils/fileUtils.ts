@@ -129,7 +129,10 @@ export class FileUtils {
      * Normalize file paths for consistent comparison
      */
     public static normalizePath(filePath: string): string {
-        return path.resolve(filePath).replace(/\\/g, '/');
+        const resolved = path.resolve(filePath).replace(/\\/g, '/');
+        // Normalize Windows drive letter to uppercase (e.g. c:/ → C:/) so CLI-reported
+        // paths (often lowercase) match VS Code workspace paths (always uppercase).
+        return resolved.replace(/^([a-zA-Z]):/, (_, d) => d.toUpperCase() + ':');
     }
 
     /**

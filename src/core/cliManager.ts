@@ -53,6 +53,7 @@ interface CrowdStrikeDownloadUrlResponse {
 interface CliDownloadInfo {
     url: string;
     hash: string;
+    fileName: string;
 }
 
 export class FcsCliManager {
@@ -210,6 +211,15 @@ export class FcsCliManager {
     }
 
     /**
+     * Returns platform-appropriate guidance for EACCES/EPERM errors on the CLI binary.
+     */
+    private permissionGuidance(): string {
+        return process.platform === 'win32'
+            ? ' Access denied to the CLI binary. Try running VS Code as Administrator or check antivirus settings.'
+            : ' Permission denied: check file permissions on the CLI binary.';
+    }
+
+    /**
      * Secure CLI execution helper to prevent command injection
      */
     private async executeCli(cliPath: string, args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -238,8 +248,8 @@ export class FcsCliManager {
                 let guidance = '';
                 if (message.includes('ENOENT')) {
                     guidance = ' The CLI binary was not found. Verify it is installed and in your PATH.';
-                } else if (message.includes('EACCES')) {
-                    guidance = ' The CLI binary exists but is not executable. Check file permissions.';
+                } else if (message.includes('EACCES') || message.includes('EPERM')) {
+                    guidance = this.permissionGuidance();
                 } else if (message.includes('ENOEXEC')) {
                     guidance = ' The CLI binary is not executable or not the correct architecture for your system.';
                 }
@@ -724,7 +734,7 @@ export class FcsCliManager {
             child.stdout?.on('data', (data) => {
                 const chunk = data.toString();
                 if (stdout.length + chunk.length > maxOutputSize) {
-                    child.kill('SIGTERM');
+                    child.kill();
                     reject(new CliError(
                         `Scan output exceeded 10MB limit. This usually means the scan found too many issues ` +
                         `or the target files are very large. Try scanning a smaller scope or specific directories.`
@@ -737,7 +747,7 @@ export class FcsCliManager {
             child.stderr?.on('data', (data) => {
                 const chunk = data.toString();
                 if (stderr.length + chunk.length > maxOutputSize) {
-                    child.kill('SIGTERM');
+                    child.kill();
                     reject(new CliError(
                         `CLI error output exceeded 10MB limit. The scan may have encountered a serious issue. ` +
                         `Check the VS Code Output panel for details, or use "FCS: Check CLI Status" to verify CLI installation.`
@@ -791,8 +801,8 @@ export class FcsCliManager {
                 let guidance = '';
                 if (message.includes('ENOENT')) {
                     guidance = ' The CLI binary was not found at the expected location. ';
-                } else if (message.includes('EACCES')) {
-                    guidance = ' Permission denied: check file permissions on the CLI binary. ';
+                } else if (message.includes('EACCES') || message.includes('EPERM')) {
+                    guidance = this.permissionGuidance() + ' ';
                 } else if (message.includes('ENOEXEC')) {
                     guidance = ' The binary may be corrupted or the wrong architecture. ';
                 }
@@ -806,7 +816,7 @@ export class FcsCliManager {
             if (options.timeout) {
                 setTimeout(() => {
                     if (!child.killed) {
-                        child.kill('SIGTERM');
+                        child.kill();
                         reject(new CliError(`CLI command timed out after ${options.timeout}ms`));
                     }
                 }, options.timeout);
@@ -1012,7 +1022,7 @@ export class FcsCliManager {
 
             this.validateDownloadUrl(downloadUrl, apiUrl);
 
-            return { url: downloadUrl, hash: fileHash };
+            return { url: downloadUrl, hash: fileHash, fileName: platformDownload.file_name };
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const status = error.response?.status;
@@ -1035,7 +1045,7 @@ export class FcsCliManager {
     /**
      * Downloads CLI archive to a temporary location and verifies its integrity
      */
-    private async downloadCliArchive(downloadUrl: string, expectedHash: string): Promise<string> {
+    private async downloadCliArchive(downloadUrl: string, expectedHash: string, fileName: string): Promise<string> {
         console.log(`📥 Downloading CLI archive...`);
 
         const response = await axios.get(downloadUrl, this.getAxiosConfigWithProxy({
@@ -1045,9 +1055,10 @@ export class FcsCliManager {
             maxBodyLength: LIMITS.MAX_DOWNLOAD_SIZE
         }));
 
-        // Create a secure temporary file for the download
+        // Preserve the original file extension so extraction logic can detect .zip vs .tar.gz
+        const ext = fileName.toLowerCase().endsWith('.zip') ? '.zip' : '.tar.gz';
         const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fcs-download-'));
-        const tempArchive = path.join(tempDir, 'fcs-cli.tar.gz');
+        const tempArchive = path.join(tempDir, `fcs-cli${ext}`);
         console.log(`   Temp archive: ${tempArchive}`);
 
         const writeStream = fs.createWriteStream(tempArchive);
@@ -1104,6 +1115,43 @@ export class FcsCliManager {
      * Restores the robust logic from commit 28d0bc3 that handles various archive structures
      */
     private async extractCliArchive(tempArchive: string, cliDir: string): Promise<void> {
+        // On Windows the API provides a .zip archive; use PowerShell to extract it.
+        if (tempArchive.toLowerCase().endsWith('.zip') && process.platform === 'win32') {
+            console.log(`Extracting .zip archive (Windows)...`);
+            // Use full path to PowerShell to handle Server editions where it may not be in PATH
+            const psExe = process.env['SystemRoot']
+                ? `${process.env['SystemRoot']}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`
+                : 'powershell.exe';
+            await new Promise<void>((resolve, reject) => {
+                const ps = spawn(psExe, [
+                    '-NoProfile', '-NonInteractive', '-Command',
+                    `Expand-Archive -Force -LiteralPath $env:ARCHIVE_PATH -DestinationPath $env:DEST_PATH`
+                ], {
+                    windowsHide: true,
+                    env: {
+                        ...process.env,
+                        ARCHIVE_PATH: tempArchive,
+                        DEST_PATH: cliDir
+                    }
+                });
+                const timer = setTimeout(() => {
+                    ps.kill();
+                    reject(new Error(`Expand-Archive timed out after ${TIMEOUTS.DOWNLOAD / 1000} seconds`));
+                }, TIMEOUTS.DOWNLOAD);
+                ps.on('close', (code) => {
+                    clearTimeout(timer);
+                    if (code === 0) { resolve(); }
+                    else { reject(new Error(`Expand-Archive exited with code ${code}`)); }
+                });
+                ps.on('error', (err) => {
+                    clearTimeout(timer);
+                    reject(err);
+                });
+            });
+            console.log(`Archive extracted successfully`);
+            return;
+        }
+
         console.log(`🔍 Analyzing archive structure before extraction...`);
 
         // Analyze archive contents to determine extraction strategy
@@ -1350,7 +1398,7 @@ export class FcsCliManager {
 
         try {
             // Download and extract in one streamlined process
-            tempArchive = await this.downloadCliArchive(downloadInfo.url, downloadInfo.hash);
+            tempArchive = await this.downloadCliArchive(downloadInfo.url, downloadInfo.hash, downloadInfo.fileName);
             await this.extractCliArchive(tempArchive, cliDir);
             await this.ensureCliAtExpectedLocation(cliDir, expectedCliPath);
 

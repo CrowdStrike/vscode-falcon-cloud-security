@@ -4,6 +4,8 @@
 
 import * as vscode from 'vscode';
 import * as assert from 'assert';
+import * as os from 'os';
+import * as path from 'path';
 import { FcsCliManager } from '../../core/cliManager';
 
 suite('CLI Download Interface Fix Tests', () => {
@@ -16,7 +18,7 @@ suite('CLI Download Interface Fix Tests', () => {
                 get: () => undefined,
                 update: () => Promise.resolve()
             },
-            globalStorageUri: vscode.Uri.file('/tmp/test-storage')
+            globalStorageUri: vscode.Uri.file(path.join(os.tmpdir(), 'test-storage'))
         } as any);
     });
 

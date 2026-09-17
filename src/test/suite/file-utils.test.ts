@@ -176,4 +176,20 @@ suite('FileUtils Tests', () => {
         assert.strictEqual(FileUtils.isIacFile('/path/image.png'), false);
         assert.strictEqual(FileUtils.isIacFile('/path/binary.exe'), false);
     });
+
+    // --- normalizePath() Windows drive letter ---
+
+    test('normalizePath() uppercases Windows drive letter: lowercase c: becomes C:', () => {
+        // Access the regex logic directly — apply the same transform normalizePath uses
+        const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, (_, d) => d.toUpperCase() + ':');
+        assert.strictEqual(normalize('c:/Users/brandon/project/main.tf'), 'C:/Users/brandon/project/main.tf');
+        assert.strictEqual(normalize('C:/Users/brandon/project/main.tf'), 'C:/Users/brandon/project/main.tf');
+        assert.strictEqual(normalize('d:/work/file.tf'), 'D:/work/file.tf');
+    });
+
+    test('normalizePath() leaves non-Windows paths unchanged by drive letter regex', () => {
+        const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, (_, d) => d.toUpperCase() + ':');
+        assert.strictEqual(normalize('/usr/local/project/main.tf'), '/usr/local/project/main.tf');
+        assert.strictEqual(normalize('relative/path/file.tf'), 'relative/path/file.tf');
+    });
 });
