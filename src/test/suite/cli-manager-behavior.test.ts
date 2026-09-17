@@ -1,5 +1,7 @@
 import * as assert from 'assert';
 import * as sinon from 'sinon';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
 import { FcsCliManager } from '../../core/cliManager';
@@ -7,6 +9,11 @@ import { FcsCliManager } from '../../core/cliManager';
 // The compiled cliManager uses require('child_process').spawn via CommonJS property access,
 // so patching this shared module object affects the spawn reference in the loaded module.
 const childProcess = require('child_process') as typeof import('child_process');
+
+// Platform-appropriate mock CLI path for use in stubs that need a plausible binary path.
+const MOCK_CLI_PATH = process.platform === 'win32'
+    ? path.join(os.homedir(), '.local', 'bin', 'fcs.exe')
+    : '/usr/local/bin/fcs';
 
 function makeVsCodeConfig(overrides: Record<string, any> = {}) {
     return {
@@ -242,6 +249,39 @@ suite('FcsCliManager Behavior Tests', () => {
         );
     });
 
+    test('runCliCommand: EPERM error produces permission guidance', async () => {
+        sandbox.stub(vscode.workspace, 'getConfiguration').returns(makeVsCodeConfig());
+        const fakeChild = new EventEmitter() as any;
+        fakeChild.stdout = new EventEmitter();
+        fakeChild.stderr = new EventEmitter();
+        fakeChild.killed = false;
+        fakeChild.kill = () => {};
+        sandbox.stub(childProcess, 'spawn').returns(fakeChild);
+        const promise = (manager as any).runCliCommand(MOCK_CLI_PATH, ['scan'], {});
+        setImmediate(() => fakeChild.emit('error', Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' })));
+        await assert.rejects(promise, (err: Error) => {
+            const msg = err.message;
+            // Should mention either Administrator (Windows) or permissions (Unix)
+            return msg.includes('Administrator') || msg.includes('ermission');
+        });
+    });
+
+    test('runCliCommand: EACCES error produces permission guidance', async () => {
+        sandbox.stub(vscode.workspace, 'getConfiguration').returns(makeVsCodeConfig());
+        const fakeChild = new EventEmitter() as any;
+        fakeChild.stdout = new EventEmitter();
+        fakeChild.stderr = new EventEmitter();
+        fakeChild.killed = false;
+        fakeChild.kill = () => {};
+        sandbox.stub(childProcess, 'spawn').returns(fakeChild);
+        const promise = (manager as any).runCliCommand(MOCK_CLI_PATH, ['scan'], {});
+        setImmediate(() => fakeChild.emit('error', Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })));
+        await assert.rejects(promise, (err: Error) => {
+            const msg = err.message;
+            return msg.includes('Administrator') || msg.includes('ermission');
+        });
+    });
+
     test('runCliCommand: credentials in stderr are redacted in the returned result', async () => {
         sandbox.stub(vscode.workspace, 'getConfiguration').returns(makeVsCodeConfig());
         const result = await (manager as any).runCliCommand(
@@ -440,19 +480,19 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('checkCliStatus: returns installed status when PATH CLI is outside workspace and executes', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version 1.5.0', stderr: '', exitCode: 0 });
         sandbox.stub(manager as any, 'checkDownloadedCli').resolves({ isInstalled: false, path: '/storage/fcs-cli/fcs' });
         const status = await manager.checkCliStatus();
         assert.strictEqual(status.isInstalled, true);
         assert.strictEqual(status.version, '1.5.0');
-        assert.strictEqual(status.path, '/usr/local/bin/fcs');
+        assert.strictEqual(status.path, MOCK_CLI_PATH);
         assert.strictEqual(status.isCompatible, false);
     });
 
     test('checkCliStatus: marks compatible version (3.0.0+) as isCompatible=true', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version 3.0.0', stderr: '', exitCode: 0 });
         sandbox.stub(manager as any, 'checkDownloadedCli').resolves({ isInstalled: false, path: '/storage/fcs-cli/fcs' });
@@ -463,7 +503,7 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('checkCliStatus: marks incompatible version (< 3.0.0) as isCompatible=false', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version 2.0.2', stderr: '', exitCode: 0 });
         sandbox.stub(manager as any, 'checkDownloadedCli').resolves({ isInstalled: false, path: '/storage/fcs-cli/fcs' });
@@ -474,7 +514,7 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('checkCliStatus: falls through to downloaded CLI when PATH CLI execution fails', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => { throw new Error('binary not executable'); };
         const checkDownloaded = sandbox.stub(manager as any, 'checkDownloadedCli').resolves({
@@ -495,12 +535,12 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('getAvailableCliPath: returns PATH CLI path when outside workspace and executes successfully', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).getDownloadedCliPath = () => '/storage/fcs-cli/fcs';
         (manager as any).pathExists = async () => false;
         (manager as any).executeCli = async () => ({ stdout: '', stderr: '', exitCode: 0 });
-        assert.strictEqual(await (manager as any).getAvailableCliPath(), '/usr/local/bin/fcs');
+        assert.strictEqual(await (manager as any).getAvailableCliPath(), MOCK_CLI_PATH);
     });
 
     test('getAvailableCliPath: skips workspace-shadowed PATH CLI and returns downloaded path', async () => {
@@ -512,7 +552,7 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('getAvailableCliPath: falls back to downloaded CLI when PATH CLI execution fails', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => { throw new Error('exec failed'); };
         (manager as any).getDownloadedCliPath = () => '/storage/fcs-cli/fcs';
@@ -521,7 +561,7 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('getAvailableCliPath: prefers downloaded CLI over system CLI regardless of version', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).getDownloadedCliPath = () => '/storage/fcs-cli/fcs';
         (manager as any).pathExists = async () => true;
@@ -530,16 +570,16 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('getAvailableCliPath: uses system CLI when no downloaded CLI exists', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).getDownloadedCliPath = () => '/storage/fcs-cli/fcs';
         (manager as any).pathExists = async () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version: 3.2.0', stderr: '', exitCode: 0 });
-        assert.strictEqual(await (manager as any).getAvailableCliPath(), '/usr/local/bin/fcs');
+        assert.strictEqual(await (manager as any).getAvailableCliPath(), MOCK_CLI_PATH);
     });
 
     test('checkCliStatus: prefers downloaded CLI over system CLI regardless of version', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version: 3.2.0', stderr: '', exitCode: 0 });
         sandbox.stub(manager as any, 'checkDownloadedCli').resolves({
@@ -551,7 +591,7 @@ suite('FcsCliManager Behavior Tests', () => {
     });
 
     test('checkCliStatus: uses system CLI when no downloaded CLI exists', async () => {
-        (manager as any).resolveCliPath = async () => '/usr/local/bin/fcs';
+        (manager as any).resolveCliPath = async () => MOCK_CLI_PATH;
         (manager as any).isWorkspacePath = () => false;
         (manager as any).executeCli = async () => ({ stdout: 'fcs version: 3.2.0', stderr: '', exitCode: 0 });
         sandbox.stub(manager as any, 'checkDownloadedCli').resolves({
@@ -559,7 +599,7 @@ suite('FcsCliManager Behavior Tests', () => {
         });
         const status = await manager.checkCliStatus();
         assert.strictEqual(status.version, '3.2.0');
-        assert.strictEqual(status.path, '/usr/local/bin/fcs');
+        assert.strictEqual(status.path, MOCK_CLI_PATH);
     });
 
     // --- migrate-config ---

@@ -32,7 +32,7 @@ function makeManager(): FcsCliManager {
             get: () => undefined,
             update: () => Promise.resolve()
         },
-        globalStorageUri: vscode.Uri.file('/tmp/test-storage-real-cli')
+        globalStorageUri: vscode.Uri.file(path.join(os.tmpdir(), 'test-storage-real-cli'))
     } as any);
 }
 
@@ -220,7 +220,7 @@ suite('Real FCS CLI — Error Handling', () => {
     test('scanFiles() on non-existent file throws', async function() {
         this.timeout(SCAN_TIMEOUT);
         await assert.rejects(
-            () => manager.scanFiles(['/tmp/does-not-exist-xyzzy.tf']),
+            () => manager.scanFiles([path.join(os.tmpdir(), 'does-not-exist-xyzzy.tf')]),
             'scanning a non-existent file should throw'
         );
     });
